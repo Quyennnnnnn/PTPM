@@ -3,50 +3,41 @@
 namespace App\Http\Controllers;
 
 use RealRashid\SweetAlert\Facades\Alert;
-use App\Models\NhaCungCap;
-use App\Models\PhieuNhap;
 use Illuminate\Http\Request;
+use App\Factories\RepositoryFactory;
 
 class NhaCungCapController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
+    protected $factory;
+
+    public function __construct(RepositoryFactory $factory)
+    {
+        $this->factory = $factory;
+    }
+
     public function index()
     {
-        $nha_cung_cap = NhaCungCap::all(); 
-
+        $nha_cung_cap = $this->factory->createNhaCungCapRepository()->getAll();
         return view('nhacungcap.index', compact('nha_cung_cap'));
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
     public function create()
     {
-        $Ma_nha_cung_cap = NhaCungCap::generateMaNCC();
+        $Ma_nha_cung_cap = \App\Models\NhaCungCap::generateMaNCC();
         return view('nhacungcap.create', compact('Ma_nha_cung_cap'));
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(Request $request)
     {
-        $data = $request->validate([ 
-            'Ma_Nha_Cung_Cap'=>'required',
-            'Ten_Nha_Cung_Cap' => 'required|max:100', 
+        $data = $request->validate([
+            'Ma_Nha_Cung_Cap' => 'required',
+            'Ten_Nha_Cung_Cap' => 'required|max:100',
             'SDT' => 'required|regex:/^(0)[0-9]{9}$/',
             'Dia_Chi' => 'string|max:255'
         ]);
-        $Mo_Ta = $this->processDescription($request->Mo_Ta);
-        $nha_cung_cap = NhaCungCap::create([
-            'Ma_Nha_Cung_Cap' => $data['Ma_Nha_Cung_Cap'],
-            'Ten_Nha_Cung_Cap' => $data['Ten_Nha_Cung_Cap'],
-            'Dia_Chi' => $data['Dia_Chi'],
-            'SDT' => $data['SDT'],
-            'Mo_Ta' => $Mo_Ta
-        ]);
+        $data['Mo_Ta'] = $this->processDescription($request->Mo_Ta);
+
+        $nha_cung_cap = $this->factory->createNhaCungCapRepository()->create($data);
 
         if ($nha_cung_cap) {
             Alert::success('Thành công', 'Thêm mới nhà cung cấp thành công!');
@@ -57,13 +48,10 @@ class NhaCungCapController extends Controller
         }
     }
 
-    /**
-     * Display the specified resource.
-     */
     public function show($code)
     {
-        $nha_cung_cap = NhaCungCap::where('Ma_Nha_Cung_Cap', $code)->firstOrFail();
-        $chi_tiet_nhap_hang = PhieuNhap::where('Ma_NCC', $code)->paginate(10);
+        $nha_cung_cap = $this->factory->createNhaCungCapRepository()->find($code);
+        $chi_tiet_nhap_hang = $this->factory->createNhaCungCapRepository()->getChiTietNhapHang($code);
         $tong_gia_tri = 0;
         foreach ($chi_tiet_nhap_hang as $phieu) {
             $tong_gia_tri += $phieu->chiTietPhieuNhap->sum(function ($chi_tiet) {
@@ -76,8 +64,7 @@ class NhaCungCapController extends Controller
 
     public function edit($code)
     {
-        $nha_cung_cap = NhaCungCap::where('Ma_Nha_Cung_Cap', $code)->first();
-
+        $nha_cung_cap = $this->factory->createNhaCungCapRepository()->find($code);
         if ($nha_cung_cap) {
             return view('nhacungcap.edit', compact('nha_cung_cap'));
         } else {
@@ -86,9 +73,6 @@ class NhaCungCapController extends Controller
         }
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
     public function update(Request $request, $code)
     {
         $request->validate([
@@ -101,17 +85,10 @@ class NhaCungCapController extends Controller
             'SDT.regex' => 'Định dạng số điện thoại không đúng.'
         ]);
 
-        $nha_cung_cap = NhaCungCap::where('Ma_Nha_Cung_Cap', $code)->first();
+        $data = $request->all();
+        $data['Mo_Ta'] = $this->processDescription($request->Mo_Ta);
 
-        $Mo_Ta = $this->processDescription($request->Mo_Ta);
-
-        $status = $nha_cung_cap->update([
-            'Ma_Nha_Cung_Cap' => $request->Ma_Nha_Cung_Cap,
-            'Ten_Nha_Cung_Cap' => $request->Ten_Nha_Cung_Cap,
-            'Dia_Chi' => $request->Dia_Chi,
-            'SDT' => $request->SDT,
-            'Mo_Ta' => $Mo_Ta
-        ]);
+        $status = $this->factory->createNhaCungCapRepository()->update($code, $data);
 
         if ($status) {
             Alert::success('Thành công', 'Sửa thông tin nhà cung cấp thành công!');
@@ -122,13 +99,9 @@ class NhaCungCapController extends Controller
         }
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
     public function destroy($code)
     {
-        $status = NhaCungCap::where('Ma_Nha_Cung_Cap', $code)->delete();
-
+        $status = $this->factory->createNhaCungCapRepository()->delete($code);
         if ($status) {
             Alert::success('Thành công', 'Xóa thông tin nhà cung cấp thành công!');
             return redirect()->route('nha-cung-cap.index');
@@ -137,23 +110,22 @@ class NhaCungCapController extends Controller
             return back();
         }
     }
-    
-    private function processDescription($Mo_Ta)
-     {
 
-         if ($this->isJson($Mo_Ta)) {
-             $jsonData = json_decode($Mo_Ta, true);
-             if (isset($jsonData['ops']) && is_array($jsonData['ops'])) {
-                 $content = '';
-                 foreach ($jsonData['ops'] as $op) {
-                     $content .= $op['insert'] ?? '';
-                 }
-                 return trim(strip_tags($content)) ?: 'Không có mô tả cụ thể!';
-             }
-         }
-         return $Mo_Ta && trim($Mo_Ta) ? strip_tags($Mo_Ta) : 'Không có mô tả cụ thể!';
-     }
-     
+    private function processDescription($Mo_Ta)
+    {
+        if ($this->isJson($Mo_Ta)) {
+            $jsonData = json_decode($Mo_Ta, true);
+            if (isset($jsonData['ops']) && is_array($jsonData['ops'])) {
+                $content = '';
+                foreach ($jsonData['ops'] as $op) {
+                    $content .= $op['insert'] ?? '';
+                }
+                return trim(strip_tags($content)) ?: 'Không có mô tả cụ thể!';
+            }
+        }
+        return $Mo_Ta && trim($Mo_Ta) ? strip_tags($Mo_Ta) : 'Không có mô tả cụ thể!';
+    }
+
     private function isJson($string)
     {
         return is_string($string) && json_decode($string) && json_last_error() === JSON_ERROR_NONE;

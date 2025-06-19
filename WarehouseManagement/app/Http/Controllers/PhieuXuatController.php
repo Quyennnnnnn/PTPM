@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Http\Controllers;
+
 use App\Models\PhieuXuat;
 use App\Models\NguyenLieu;
 use App\Models\ChiTietPhieuXuat;
@@ -17,16 +18,16 @@ class PhieuXuatController extends Controller
     {
         $Ma_Phieu_Xuat =  $this->generateRandomNumber();
         $phieu_xuat = PhieuXuat::with('getUser')->orderBy('Ma_Phieu_Xuat', 'DESC')->paginate(10);
-        $co_so=CoSo::all();
-        return view('xuatkho.index', compact('phieu_xuat', 'Ma_Phieu_Xuat','co_so'));
+        $co_so = CoSo::all();
+        return view('xuatkho.index', compact('phieu_xuat', 'Ma_Phieu_Xuat', 'co_so'));
     }
 
     private function generateRandomNumber()
     {
 
         do {
-            $randomNumber = mt_rand(1000000000, 9999999999); 
-        } while (PhieuXuat::where('Ma_Phieu_Xuat', $randomNumber)->exists()); 
+            $randomNumber = mt_rand(1000000000, 9999999999);
+        } while (PhieuXuat::where('Ma_Phieu_Xuat', $randomNumber)->exists());
 
         return $randomNumber;
     }
@@ -35,9 +36,9 @@ class PhieuXuatController extends Controller
         $Ma_Phieu_Xuat =  $this->generateRandomNumber();
         $loai_nguyen_lieu = LoaiNguyenLieu::all();
         $nguyen_lieu = NguyenLieu::all();
-        $co_so=CoSo::all();
+        $co_so = CoSo::all();
 
-        return view('xuatkho.create', compact('Ma_Phieu_Xuat', 'loai_nguyen_lieu','nguyen_lieu','co_so'));
+        return view('xuatkho.create', compact('Ma_Phieu_Xuat', 'loai_nguyen_lieu', 'nguyen_lieu', 'co_so'));
     }
 
 
@@ -82,7 +83,7 @@ class PhieuXuatController extends Controller
                 'Ngay_Xuat' => $data['Ngay_Xuat'],
                 'Mo_Ta' => $this->processDescription($request->Mo_Ta),
                 'Ma_Co_So' => $data['Ma_Co_So'],
-                'Tong_Tien' => $tongtien, 
+                'Tong_Tien' => $tongtien,
                 'ID_user' => auth()->id(),
             ]);
             foreach (array_slice($excelData, 1) as $row) {
@@ -108,7 +109,7 @@ class PhieuXuatController extends Controller
                     $nguyenLieu->So_Luong_Ton -= $chiTietData['So_Luong_Xuat'];
                     $nguyenLieu->save();
                 } else {
-                    throw new \Exception('Dữ liệu không hợp lệ trong file Excel tại dòng ' );
+                    throw new \Exception('Dữ liệu không hợp lệ trong file Excel tại dòng ');
                 }
             }
 
@@ -124,7 +125,7 @@ class PhieuXuatController extends Controller
             return back();
         }
     }
-    
+
 
 
     private function processDescription($Mo_Ta)
@@ -141,14 +142,14 @@ class PhieuXuatController extends Controller
         }
         return $Mo_Ta && trim($Mo_Ta) ? strip_tags($Mo_Ta) : 'Không có mô tả cụ thể!';
     }
-    
+
     private function isJson($string)
     {
         return is_string($string) && json_decode($string) && json_last_error() === JSON_ERROR_NONE;
     }
 
-   
-   public function destroy($code)
+
+    public function destroy($code)
     {
         $status = ChiTietPhieuXuat::where('Ma_Phieu_Xuat', $code)->delete() && PhieuXuat::where('Ma_Phieu_Xuat', $code)->delete();
 
@@ -160,5 +161,4 @@ class PhieuXuatController extends Controller
             return back();
         }
     }
-
 }
